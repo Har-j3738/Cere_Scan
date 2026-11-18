@@ -1,3 +1,12 @@
 streamlit
 pillow
 numpy
+pandas
+scikit-learn
+h5py
+hdf5storage
+scipy
+torch
+torchvision
+matplotlib
+pytest
