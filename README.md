@@ -1,78 +1,123 @@
-# CereScan
+# CereScan — AI Brain MRI Classification
 
-**CereScan** is an educational and research-oriented AI prototype for brain MRI image classification and explainable analysis.
+CereScan is a student research/educational prototype for three-class brain MRI tumor classification.
 
-## Current MVP
+## Current architecture
 
-The first milestone establishes the complete inference pipeline:
-
-```
-MRI Image
-   ↓
-Image Validation
+```text
+MRI upload
    ↓
 Preprocessing
    ↓
-Deep Learning Classifier
+ResNet18 transfer learning
    ↓
-Class Probabilities
+Class probabilities
    ↓
-Prediction + Explanation
+Prediction
+   ↓
+Grad-CAM explanation
 ```
 
-The current repository contains a working Streamlit interface and a clearly marked demo inference layer. Demo probabilities are placeholders and must not be interpreted as real medical predictions.
+Classes: Glioma, Meningioma, Pituitary tumor.
 
-## Planned development
+## Repository
 
-- [x] Project repository and documentation
-- [x] Working Streamlit prototype
-- [x] MRI preprocessing pipeline
-- [ ] Real PyTorch training pipeline
-- [ ] Patient-independent dataset split
-- [ ] Model evaluation: accuracy, precision, recall/sensitivity, specificity, F1
-- [ ] Confusion matrix and evaluation dashboard
-- [ ] Explainable AI with Grad-CAM
-- [ ] Model versioning and reproducible experiments
-- [ ] Optional future tumor segmentation
-- [ ] Optional future tumor-volume estimation
-
-## Tech stack
-
-- Python
-- Streamlit
-- NumPy
-- Pillow
-- PyTorch (model phase)
-- scikit-learn (evaluation phase)
-
-## Run locally
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-## Project structure
-
-```
+```text
 Cere_Scan/
 ├── app.py
 ├── pipeline.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-├── training/
 ├── neuro_scan/
+│   ├── dataset.py
+│   ├── inference.py
+│   ├── model.py
+│   └── visualization.py
+├── training/
+│   ├── prepare_dataset.py
+│   ├── train.py
+│   └── evaluate.py
+├── scripts/
+│   └── download_dataset.py
 ├── tests/
 └── docs/
 ```
 
-## Medical safety
+## Linux setup
 
-CereScan is a student research/educational prototype. It is **not a medical device and must not be used to diagnose, treat, or make clinical decisions about a patient**. Model confidence is not equivalent to clinical certainty.
+```bash
+cd ~/Projects
 
-## Goal
+git clone https://github.com/Har-j3738/Cere_Scan.git
+cd Cere_Scan
 
-Build a transparent, reproducible student project that demonstrates the complete machine-learning workflow rather than claiming clinical performance without appropriate validation.
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --default-timeout=300 --retries=10 -r requirements.txt
+```
+
+If already cloned:
+
+```bash
+cd ~/Projects/Cere_Scan
+git pull origin main
+```
+
+## Download dataset
+
+```bash
+python scripts/download_dataset.py
+```
+
+## Prepare dataset
+
+```bash
+python training/prepare_dataset.py
+```
+
+This extracts the MATLAB archives, reads image/label/patient metadata, creates patient-disjoint train/validation/test splits, and converts MRI images into model-ready RGB PNGs.
+
+## Train
+
+```bash
+python training/train.py --epochs 8 --batch-size 16
+```
+
+CUDA is used automatically when available. The local checkpoint is saved as `models/cerescan_resnet18.pth` and is ignored by Git.
+
+## Evaluate
+
+```bash
+python training/evaluate.py
+```
+
+Reports accuracy, macro precision, macro recall, macro F1, classification report, and confusion matrix.
+
+## Run CereScan
+
+```bash
+streamlit run app.py
+```
+
+Upload an MRI and click **Analyze MRI**. The application performs real PyTorch inference and displays the prediction, class probabilities, and Grad-CAM visualization.
+
+## Interpretation and safety
+
+Softmax probability is the neural network output, not clinical certainty. Grad-CAM is an explanation/localization aid, not a validated tumor segmentation mask.
+
+CereScan is **not a medical device** and must not be used to diagnose, treat, or make clinical decisions.
+
+## Status
+
+- [x] GitHub project
+- [x] Dataset download tooling
+- [x] MATLAB parser
+- [x] Patient-disjoint splitting
+- [x] ResNet18 model
+- [x] Training pipeline
+- [x] Test evaluation
+- [x] Real Streamlit inference
+- [x] Grad-CAM
+- [x] GitHub Actions tests
+- [ ] Confidence calibration
+- [ ] Confusion-matrix UI
+- [ ] Experiment/model version tracking
+- [ ] Optional segmentation research
