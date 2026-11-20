@@ -1,6 +1,6 @@
 # CereScan data directory
 
-Dataset files are intentionally excluded from Git.
+MRI data is intentionally excluded from Git.
 
 Expected local structure:
 
@@ -8,18 +8,29 @@ Expected local structure:
 data/
 ├── README.md
 └── raw/
-    ├── brainTumorDataPublic_1-766.zip
-    ├── brainTumorDataPublic_767-1532.zip
-    ├── brainTumorDataPublic_1533-2298.zip
-    └── brainTumorDataPublic_2299-3064.zip
+    └── BDNeuro-MRI/
+        ├── train/
+        │   ├── glioma/
+        │   ├── meningioma/
+        │   ├── pituitary/
+        │   └── no_tumor/
+        ├── val/
+        │   ├── glioma/
+        │   ├── meningioma/
+        │   ├── pituitary/
+        │   └── no_tumor/
+        └── test/
+            ├── glioma/
+            ├── meningioma/
+            ├── pituitary/
+            ├── no_tumor/
 ```
 
-Run:
+Download and prepare:
 
 ```bash
 python scripts/download_dataset.py
+python training/prepare_dataset.py
 ```
 
-The archives are downloaded from the official Figshare dataset record.
-
-Do not commit the downloaded archives or extracted dataset to Git.
+The dataset archive and extracted MRI images remain local and are ignored by Git.
