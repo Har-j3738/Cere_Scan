@@ -6,6 +6,7 @@ import streamlit as st
 from PIL import Image
 
 from neuro_scan.inference import grad_cam, load_model, predict
+from neuro_scan.model import CLASS_NAMES
 from neuro_scan.visualization import overlay_heatmap
 
 ROOT = Path(__file__).resolve().parent
@@ -14,18 +15,20 @@ MODEL_PATH = ROOT / "models" / "cerescan_resnet18.pth"
 st.set_page_config(page_title="CereScan", page_icon="🧠", layout="wide")
 
 st.title("🧠 CereScan")
-st.subheader("AI-assisted brain MRI classification")
+st.subheader("AI-assisted four-class brain MRI classification")
 st.caption("Research / educational prototype")
 
 st.sidebar.title("CereScan")
-st.sidebar.write("ResNet18 • real PyTorch inference • Grad-CAM")
+st.sidebar.write("ResNet18 • 4 classes • PyTorch inference • Grad-CAM")
 st.sidebar.warning("Not a medical diagnostic system.")
+
 
 @st.cache_resource
 def get_model():
     if not MODEL_PATH.exists():
         return None, None
     return load_model(MODEL_PATH)
+
 
 uploaded = st.file_uploader("Upload a brain MRI image", type=["jpg", "jpeg", "png"])
 
@@ -50,14 +53,21 @@ elif uploaded:
             st.metric("Model Probability", f"{probability * 100:.1f}%")
 
             st.subheader("Class probabilities")
-            for label, value in zip(["Meningioma", "Glioma", "Pituitary"], probabilities):
+            for label, value in zip(CLASS_NAMES, probabilities):
                 st.progress(float(value), text=f"{label}: {value * 100:.1f}%")
 
             st.subheader("AI explanation")
-            st.caption("Grad-CAM highlights image regions that influenced the model output. It is not a clinical tumor boundary.")
+            st.caption(
+                "Grad-CAM highlights image regions that influenced the model output. "
+                "It is not a clinical tumor boundary."
+            )
             try:
                 heatmap = grad_cam(model, image, device)
-                st.image(overlay_heatmap(image, heatmap), caption="Grad-CAM visualization", use_container_width=True)
+                st.image(
+                    overlay_heatmap(image, heatmap),
+                    caption="Grad-CAM visualization",
+                    use_container_width=True,
+                )
             except Exception as exc:
                 st.warning(f"Grad-CAM could not be generated for this image: {exc}")
 
