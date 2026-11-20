@@ -1,41 +1,43 @@
 # Training
 
-This directory contains the CereScan model-training pipeline.
-
-## Planned flow
+CereScan uses a four-class transfer-learning pipeline.
 
 ```text
-Official Figshare dataset
-        ↓
-MATLAB files
-        ↓
-Dataset audit
-        ↓
-Patient-disjoint split
-        ↓
-Image preprocessing
-        ↓
-Transfer-learning classifier
-        ↓
-Validation
-        ↓
-Held-out test set
-        ↓
-Metrics + confusion matrix
-        ↓
-Saved model
+BDNeuro-MRI
+      ↓
+Published train / validation / test folders
+      ↓
+Dataset validation + indexing
+      ↓
+Resize + augmentation
+      ↓
+ResNet18 transfer learning
+      ↓
+Class-weighted CrossEntropyLoss
+      ↓
+AdamW
+      ↓
+Best validation checkpoint
+      ↓
+Held-out test evaluation
+      ↓
+Accuracy / precision / recall / F1 / confusion matrix
 ```
 
-## First model
+## Target classes
 
-The first baseline will be a small transfer-learning image classifier rather than a neural network trained from scratch.
+1. Glioma
+2. Meningioma
+3. Pituitary
+4. No Tumor
 
-Target classes:
+## Commands
 
-- meningioma
-- glioma
-- pituitary
+```bash
+python scripts/download_dataset.py
+python training/prepare_dataset.py
+python training/train.py --epochs 12 --batch-size 16
+python training/evaluate.py
+```
 
-The model must be evaluated on data separated by patient where the dataset metadata permits it.
-
-Training code should never contain the dataset itself.
+The exact model performance is intentionally not hard-coded in this repository. Results must come from an actual training/evaluation run.
