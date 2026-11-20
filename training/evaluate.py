@@ -1,4 +1,4 @@
-"""Evaluate CereScan on the held-out patient-disjoint test set."""
+"""Evaluate CereScan on the held-out test set."""
 
 from pathlib import Path
 import json
@@ -8,7 +8,7 @@ import torch
 from sklearn.metrics import classification_report, confusion_matrix
 from torch.utils.data import DataLoader
 
-from neuro_scan.model import load_checkpoint
+from neuro_scan.model import CLASS_NAMES, load_checkpoint
 from training.metrics import classification_metrics, save_confusion_matrix
 from training.train import CereScanDataset, build_transforms
 
@@ -16,7 +16,6 @@ ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "data" / "processed" / "splits.csv"
 MODEL_PATH = ROOT / "models" / "cerescan_resnet18.pth"
 RESULTS = ROOT / "reports"
-NAMES = ["Meningioma", "Glioma", "Pituitary"]
 
 
 def main():
@@ -43,7 +42,7 @@ def main():
     metrics = classification_metrics(y_true, y_pred)
     RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / "metrics.json").write_text(json.dumps(metrics, indent=2))
-    save_confusion_matrix(y_true, y_pred, NAMES, RESULTS / "confusion_matrix.png")
+    save_confusion_matrix(y_true, y_pred, CLASS_NAMES, RESULTS / "confusion_matrix.png")
 
     print("\nCereScan test results")
     print("=" * 50)
@@ -51,7 +50,7 @@ def main():
         print(f"{key}: {value:.4f}")
 
     print("\nClassification report")
-    print(classification_report(y_true, y_pred, target_names=NAMES, zero_division=0))
+    print(classification_report(y_true, y_pred, target_names=CLASS_NAMES, zero_division=0))
     print("Confusion matrix")
     print(confusion_matrix(y_true, y_pred))
     print(f"\nSaved reports to: {RESULTS}")
