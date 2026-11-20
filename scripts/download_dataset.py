@@ -1,74 +1,62 @@
-"""Download the official Jun Cheng brain tumor dataset from Figshare.
+"""Dataset acquisition and validation helper for CereScan.
 
-The dataset is kept outside Git because the archives are large.
+BDNeuro-MRI is distributed through Mendeley Data. The dataset archive is
+intentionally not downloaded into the Git repository.
 """
 
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
-from urllib.request import Request, urlopen
 
-DATASET_DIR = Path("data/raw")
-
-FILES = [
-    (
-        "brainTumorDataPublic_1-766.zip",
-        "https://figshare.com/ndownloader/files/2706818",
-    ),
-    (
-        "brainTumorDataPublic_767-1532.zip",
-        "https://figshare.com/ndownloader/files/2706815",
-    ),
-    (
-        "brainTumorDataPublic_1533-2298.zip",
-        "https://figshare.com/ndownloader/files/2706812",
-    ),
-    (
-        "brainTumorDataPublic_2299-3064.zip",
-        "https://figshare.com/ndownloader/files/2706809",
-    ),
-]
+DATASET_URL = "https://data.mendeley.com/datasets/zwr4ntf94j"
+EXPECTED_ROOT = Path("data/raw/BDNeuro-MRI")
+EXPECTED_SPLITS = ("train", "val", "test")
+EXPECTED_CLASSES = ("glioma", "meningioma", "pituitary", "no_tumor")
 
 
-def download(url: str, destination: Path) -> None:
-    if destination.exists():
-        print(f"Already exists: {destination}")
-        return
+def check_dataset(root: Path = EXPECTED_ROOT) -> bool:
+    """Validate the expected local image-folder structure."""
+    missing = []
 
-    print(f"Downloading {destination.name} ...")
+    if not root.exists():
+        missing.append(str(root))
+    else:
+        for split in EXPECTED_SPLITS:
+            for class_name in EXPECTED_CLASSES:
+                directory = root / split / class_name
+                if not directory.is_dir():
+                    missing.append(str(directory))
+                elif not any(directory.iterdir()):
+                    missing.append(f"{directory} (empty)")
 
-    request = Request(
-        url,
-        headers={"User-Agent": "CereScan/0.1"},
+    if missing:
+        print("Dataset check: FAILED")
+        print("Missing or empty paths:")
+        for path in missing:
+            print(f"  - {path}")
+        return False
+
+    print(f"Dataset check: OK -> {root}")
+    return True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check the local BDNeuro-MRI dataset.")
+    parser.add_argument("--root", type=Path, default=EXPECTED_ROOT)
+    parser.add_argument(
+        "--show-source",
+        action="store_true",
+        help="Print the official dataset page for manual download.",
     )
+    args = parser.parse_args()
 
-    with urlopen(request, timeout=60) as response, destination.open("wb") as output:
-        total = response.headers.get("Content-Length")
-        total_bytes = int(total) if total else None
-        downloaded = 0
+    if args.show_source:
+        print(f"Official dataset page: {DATASET_URL}")
+        print(f"Expected local directory: {args.root}")
 
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-
-            output.write(chunk)
-            downloaded += len(chunk)
-
-            if total_bytes:
-                percent = downloaded * 100 / total_bytes
-                print(f"  {percent:5.1f}%", end="\r")
-
-    print(f"  Saved: {destination}")
-
-
-def main() -> None:
-    DATASET_DIR.mkdir(parents=True, exist_ok=True)
-
-    for filename, url in FILES:
-        download(url, DATASET_DIR / filename)
-
-    print("\nDataset download complete.")
-    print("The archives are intentionally ignored by Git.")
+    return 0 if check_dataset(args.root) else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
