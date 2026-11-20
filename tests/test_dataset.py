@@ -1,10 +1,11 @@
 import numpy as np
 
-from neuro_scan.dataset import LABELS, normalize_mri, to_rgb
+from neuro_scan.dataset import CLASS_NAMES, LABELS, normalize_mri, to_rgb
 
 
-def test_labels_are_three_class():
-    assert LABELS == {1: "Meningioma", 2: "Glioma", 3: "Pituitary"}
+def test_labels_are_four_class():
+    assert CLASS_NAMES == ["Glioma", "Meningioma", "Pituitary", "No Tumor"]
+    assert LABELS == {0: "Glioma", 1: "Meningioma", 2: "Pituitary", 3: "No Tumor"}
 
 
 def test_normalize_mri_returns_uint8():
