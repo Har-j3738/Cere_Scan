@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "CereScan"
+message: "If you use CereScan, please cite this repository and the BDNeuro-MRI dataset."
+type: software
+authors:
+  - family-names: "Mishra"
+    given-names: "Pranav"
+repository-code: "https://github.com/Har-j3738/Cere_Scan"
+license: MIT
+version: 0.1.0
+date-released: "2026-11-20"
+keywords:
+  - brain MRI
+  - deep learning
+  - ResNet18
+  - medical imaging
+  - classification
