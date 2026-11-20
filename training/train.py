@@ -1,4 +1,4 @@
-"""Train the CereScan classifier with reproducible, class-balanced training."""
+"""Train the CereScan four-class classifier with reproducible, class-balanced training."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from neuro_scan.model import build_model, save_checkpoint
+from neuro_scan.model import CLASS_NAMES, build_model, save_checkpoint
 
 ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "data" / "processed" / "splits.csv"
@@ -42,7 +42,7 @@ class CereScanDataset(Dataset):
         image = Image.open(ROOT / row["image_path"]).convert("RGB")
         if self.transform:
             image = self.transform(image)
-        return image, int(row["label"]) - 1
+        return image, int(row["label"])
 
 
 def build_transforms(train: bool):
@@ -51,15 +51,15 @@ def build_transforms(train: bool):
         ops += [transforms.RandomHorizontalFlip(0.5), transforms.RandomRotation(8)]
     ops += [
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406],
-                             [0.229, 0.224, 0.225]),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ]
     return transforms.Compose(ops)
 
 
 def class_weights(frame: pd.DataFrame) -> torch.Tensor:
-    counts = frame["label"].value_counts().sort_index()
-    weights = len(frame) / (len(counts) * counts)
+    counts = frame["label"].value_counts().reindex(range(len(CLASS_NAMES)), fill_value=0)
+    weights = len(frame) / (len(CLASS_NAMES) * counts.replace(0, np.nan))
+    weights = weights.fillna(0.0)
     return torch.tensor(weights.values, dtype=torch.float32)
 
 
@@ -70,11 +70,12 @@ def run_epoch(model, loader, loss_fn, optimizer, device, training=True):
         images, labels = images.to(device), labels.to(device)
         if training:
             optimizer.zero_grad(set_to_none=True)
-        logits = model(images)
-        loss = loss_fn(logits, labels)
-        if training:
-            loss.backward()
-            optimizer.step()
+        with torch.set_grad_enabled(training):
+            logits = model(images)
+            loss = loss_fn(logits, labels)
+            if training:
+                loss.backward()
+                optimizer.step()
         total_loss += loss.item() * labels.size(0)
         correct += (logits.argmax(1) == labels).sum().item()
         total += labels.size(0)
@@ -83,7 +84,7 @@ def run_epoch(model, loader, loss_fn, optimizer, device, training=True):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=8)
+    parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=42)
@@ -93,7 +94,6 @@ def main():
         raise SystemExit("Run: python training/prepare_dataset.py")
 
     seed_everything(args.seed)
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     if device.type == "cuda":
