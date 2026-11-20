@@ -1,70 +1,24 @@
-"""Dataset utilities for the Jun Cheng brain tumor dataset."""
+"""Dataset utilities for the four-class CereScan MRI dataset."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from PIL import Image
 
-LABELS = {1: "Meningioma", 2: "Glioma", 3: "Pituitary"}
+CLASS_NAMES = ["Glioma", "Meningioma", "Pituitary", "No Tumor"]
+LABELS = {index: name for index, name in enumerate(CLASS_NAMES)}
+NAME_TO_LABEL = {name: index for index, name in LABELS.items()}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
 @dataclass(frozen=True)
 class Record:
     path: Path
     label: int
-    patient_id: str
-
-
-def _unwrap(value: Any) -> Any:
-    while isinstance(value, np.ndarray) and value.size == 1:
-        value = value.reshape(-1)[0]
-    return value
-
-
-def _field(struct: Any, name: str) -> Any:
-    struct = _unwrap(struct)
-    if isinstance(struct, dict):
-        return _unwrap(struct[name])
-    if hasattr(struct, name):
-        return _unwrap(getattr(struct, name))
-    if isinstance(struct, np.void) and struct.dtype.names and name in struct.dtype.names:
-        return _unwrap(struct[name])
-    raise KeyError(f"MATLAB field '{name}' not found")
-
-
-def load_mat_record(path: Path) -> tuple[np.ndarray, int, str]:
-    try:
-        import hdf5storage
-        data = hdf5storage.loadmat(str(path), simplify_cells=True)
-    except Exception as hdf_error:
-        try:
-            from scipy.io import loadmat
-            data = loadmat(str(path), squeeze_me=True, struct_as_record=False)
-        except Exception as scipy_error:
-            raise RuntimeError(
-                f"Could not read {path}. hdf5storage error: {hdf_error}; "
-                f"scipy error: {scipy_error}"
-            ) from scipy_error
-
-    if "cjdata" not in data:
-        raise KeyError(f"{path} does not contain expected 'cjdata' field")
-
-    cjdata = data["cjdata"]
-    image = np.asarray(_field(cjdata, "image"), dtype=np.float32)
-    label = int(np.asarray(_field(cjdata, "label")).reshape(-1)[0])
-    patient_id = str(np.asarray(_field(cjdata, "PID")).reshape(-1)[0])
-    image = np.squeeze(image)
-
-    if image.ndim != 2:
-        raise ValueError(f"Expected 2-D MRI image in {path}, got {image.shape}")
-    if label not in LABELS:
-        raise ValueError(f"Unexpected label {label} in {path}")
-
-    return image, label, patient_id
+    split: str
 
 
 def normalize_mri(image: np.ndarray) -> np.ndarray:
@@ -82,18 +36,37 @@ def to_rgb(image: np.ndarray) -> Image.Image:
     return Image.fromarray(normalize_mri(image), mode="L").convert("RGB")
 
 
-def discover_mat_files(root: Path) -> list[Path]:
-    files = sorted(root.rglob("*.mat"))
+def discover_images(root: Path) -> list[Path]:
+    files = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
     if not files:
-        raise FileNotFoundError(f"No .mat files found under {root}")
+        raise FileNotFoundError(f"No MRI image files found under {root}")
     return files
 
 
-def inspect_dataset(root: Path) -> list[Record]:
-    records = []
-    for index, path in enumerate(discover_mat_files(root), start=1):
-        _, label, patient_id = load_mat_record(path)
-        records.append(Record(path, label, patient_id))
-        if index % 250 == 0:
-            print(f"Audited {index} files...")
+def validate_class_tree(dataset_root: Path) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for split in ("train", "val", "test"):
+        split_dir = dataset_root / split
+        if not split_dir.is_dir():
+            raise FileNotFoundError(f"Missing dataset split directory: {split_dir}")
+        for class_name in CLASS_NAMES:
+            class_dir = split_dir / class_name.lower().replace(" ", "_")
+            if not class_dir.is_dir():
+                raise FileNotFoundError(f"Missing class directory: {class_dir}")
+            count = sum(1 for p in class_dir.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
+            if count == 0:
+                raise ValueError(f"No images found in {class_dir}")
+            counts[f"{split}/{class_name}"] = count
+    return counts
+
+
+def build_records(dataset_root: Path) -> list[Record]:
+    validate_class_tree(dataset_root)
+    records: list[Record] = []
+    for split in ("train", "val", "test"):
+        for class_name in CLASS_NAMES:
+            class_dir = dataset_root / split / class_name.lower().replace(" ", "_")
+            label = NAME_TO_LABEL[class_name]
+            for path in discover_images(class_dir):
+                records.append(Record(path=path, label=label, split=split))
     return records
